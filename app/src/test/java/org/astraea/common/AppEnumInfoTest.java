@@ -14,26 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.astraea.common.consumer;
+package org.astraea.common;
 
-import java.util.Locale;
-import org.astraea.common.EnumInfo;
-
-public enum Isolation implements EnumInfo {
-  READ_UNCOMMITTED,
-  READ_COMMITTED;
-
-  public static Isolation ofAlias(String alias) {
-    return EnumInfo.ignoreCaseEnum(Isolation.class, alias);
-  }
-
-  @Override
-  public String alias() {
-    return name();
-  }
-
-  /** @return the name parsed by kafka */
-  public String nameOfKafka() {
-    return alias().toLowerCase(Locale.ROOT);
-  }
-}
+class AppEnumInfoTest extends org.astraea.common.EnumInfoTest {}

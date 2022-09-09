@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.astraea.app.common;
+package org.astraea.common;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -106,7 +106,9 @@ class EnumInfoTest {
     var productionClasses = getProductionClass();
     Assertions.assertTrue(productionClasses.size() > 100);
     Assertions.assertTrue(
-        productionClasses.stream().allMatch(x -> x.getPackageName().startsWith("org.astraea.app")));
+        productionClasses.stream().allMatch(x -> x.getPackageName().startsWith("org.astraea")));
+    System.out.println(
+        productionClasses.stream().filter(x -> x.isEnum()).collect(Collectors.toList()));
   }
 
   @Test
@@ -118,15 +120,17 @@ class EnumInfoTest {
   }
 
   private static List<Class<?>> getProductionClass() {
-    var pkg = "org/astraea/app";
+    var pkg = "org/astraea";
+    System.out.println(EnumInfoTest.class.getClassLoader());
     var mainDir =
         Collections.list(
                 Utils.packException(() -> EnumInfoTest.class.getClassLoader().getResources(pkg)))
             .stream()
+            .peek(x -> System.out.println(x.toExternalForm()))
             .filter(x -> x.toExternalForm().contains("main/" + pkg))
             .findFirst()
             .map(x -> Utils.packException(() -> Path.of(x.toURI())))
-            .map(x -> x.resolve("../../../").normalize())
+            .map(x -> x.resolve("../../").normalize())
             .orElseThrow();
 
     var dirFiles =
