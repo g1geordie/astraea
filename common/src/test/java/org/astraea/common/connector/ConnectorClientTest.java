@@ -69,6 +69,7 @@ class ConnectorClientTest extends RequireSingleWorkerCluster {
 
   @Test
   void testCreateConnector() {
+    // TODO: 2022-10-03 test tasks
     var connectorName = Utils.randomString(10);
     var connectorClient = ConnectorClient.builder().build(workerUrl());
     var exampleConnector = getExampleConnector();
@@ -116,6 +117,12 @@ class ConnectorClientTest extends RequireSingleWorkerCluster {
     connectorClient.deleteConnector(connectorName);
     connectors = connectorClient.connectors();
     assertFalse(connectors.stream().anyMatch(x -> x.equals(connectorName)));
+
+    var workerResponseException =
+        assertThrows(
+            WorkerResponseException.class, () -> connectorClient.deleteConnector("unknown"));
+
+    assertEquals(404, workerResponseException.errorCode());
   }
 
   private void assertExampleConnector(Map<String, String> config) {

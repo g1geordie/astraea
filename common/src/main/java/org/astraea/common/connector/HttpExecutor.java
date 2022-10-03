@@ -20,6 +20,7 @@ import java.lang.reflect.Type;
 import java.net.URL;
 import java.net.http.HttpResponse;
 
+/** Send json http request. */
 public interface HttpExecutor {
 
   static HttpExecutorBuilder builder() {
@@ -36,5 +37,5 @@ public interface HttpExecutor {
 
   <T> HttpResponse<T> put(URL url, Object body, Class<T> respCls);
 
-  void delete(URL url);
+  HttpResponse<Void> delete(URL url);
 }

@@ -16,24 +16,22 @@
  */
 package org.astraea.common.connector;
 
-import java.net.http.HttpResponse.ResponseInfo;
+import java.net.http.HttpResponse;
 
-public class JsonResponseException extends RuntimeException {
+public class StringResponseException extends RuntimeException {
 
-  private final ResponseInfo responseInfo;
-  private final String errorMsg;
+  private final HttpResponse<String> httpResponse;
 
-  public JsonResponseException(String message, ResponseInfo responseInfo, String errorMsg) {
+  public StringResponseException(String message, HttpResponse<String> httpResponse) {
     super(message);
-    this.responseInfo = responseInfo;
-    this.errorMsg = errorMsg;
+    this.httpResponse = httpResponse;
   }
 
-  public ResponseInfo responseInfo() {
-    return responseInfo;
+  public HttpResponse<String> httpResponse() {
+    return httpResponse;
   }
 
   public String errorMsg() {
-    return errorMsg;
+    return httpResponse.body();
   }
 }

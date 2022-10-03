@@ -62,6 +62,7 @@ public class ConnectorTestUtil {
       if (requestMethod.stream().noneMatch(x -> exchange.getRequestMethod().equalsIgnoreCase(x))) {
         throw new RuntimeException("Request method is not supported.");
       }
+      System.out.println(exchange.getRequestURI());
       var requestBody =
           new BufferedReader(new InputStreamReader(exchange.getRequestBody()))
               .lines()

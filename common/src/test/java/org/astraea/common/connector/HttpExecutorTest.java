@@ -17,6 +17,7 @@
 package org.astraea.common.connector;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.gson.Gson;
 import java.net.InetSocketAddress;
@@ -26,6 +27,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class HttpExecutorTest {
+  private static final Gson gson = new Gson();
 
   @Test
   void testGet() {
@@ -39,50 +41,92 @@ class HttpExecutorTest {
         x -> {
           var responseHttpResponse = httpExecutor.get(getUrl(x, "/test"), TestResponse.class);
           assertEquals("testValue", responseHttpResponse.body().responseValue());
+
+          assertThrows(
+              StringResponseException.class,
+              () -> httpExecutor.get(getUrl(x, "/NotFound"), TestResponse.class));
         });
   }
-
-  private URL getUrl(InetSocketAddress socketAddress, String path) {
-    try {
-      return new URL("http://localhost:" + socketAddress.getPort() + "/testGet");
-    } catch (MalformedURLException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private Gson gson = new Gson();
 
   @Test
   void testPost() {
     var httpExecutor = HttpExecutor.builder().build();
     ConnectorTestUtil.testWithServer(
-        httpServer -> {
-          httpServer.createContext(
-              "/test",
-              ConnectorTestUtil.createTextHandler(
-                  List.of("Post"),
-                  (x) -> {
-                    var request = gson.fromJson(x, TestRequest.class);
-                    assertEquals("testRequestValue", request.requestValue());
-                  },
-                  "{'responseValue':'testValue'}"));
-        },
+        httpServer ->
+            httpServer.createContext(
+                "/test",
+                ConnectorTestUtil.createTextHandler(
+                    List.of("Post"),
+                    (x) -> {
+                      var request = gson.fromJson(x, TestRequest.class);
+                      assertEquals("testRequestValue", request.requestValue());
+                    },
+                    "{'responseValue':'testValue'}")),
         x -> {
           var request = new TestRequest();
           request.setRequestValue("testRequestValue");
           var responseHttpResponse =
               httpExecutor.post(getUrl(x, "/test"), request, TestResponse.class);
           assertEquals("testValue", responseHttpResponse.body().responseValue());
+
+          // response body can't convert to testResponse
+          assertThrows(
+              StringResponseException.class,
+              () -> httpExecutor.post(getUrl(x, "/NotFound"), request, TestResponse.class));
         });
   }
 
   @Test
-  void testPut() {}
+  void testPut() {
+    var httpExecutor = HttpExecutor.builder().build();
+    ConnectorTestUtil.testWithServer(
+        httpServer ->
+            httpServer.createContext(
+                "/test",
+                ConnectorTestUtil.createTextHandler(
+                    List.of("Put"),
+                    (x) -> {
+                      var request = gson.fromJson(x, TestRequest.class);
+                      assertEquals("testRequestValue", request.requestValue());
+                    },
+                    "{'responseValue':'testValue'}")),
+        x -> {
+          var request = new TestRequest();
+          request.setRequestValue("testRequestValue");
+          var responseHttpResponse =
+              httpExecutor.put(getUrl(x, "/test"), request, TestResponse.class);
+          assertEquals("testValue", responseHttpResponse.body().responseValue());
+
+          assertThrows(
+              StringResponseException.class,
+              () -> httpExecutor.put(getUrl(x, "/NotFound"), request, TestResponse.class));
+        });
+  }
 
   @Test
-  void testDelete() {}
+  void testDelete() {
+    var httpExecutor = HttpExecutor.builder().build();
+    ConnectorTestUtil.testWithServer(
+        httpServer ->
+            httpServer.createContext(
+                "/test", ConnectorTestUtil.createTextHandler(List.of("delete"), "")),
+        x -> {
+          httpExecutor.delete(getUrl(x, "/test"));
 
-  public class TestResponse {
+          assertThrows(
+              StringResponseException.class, () -> httpExecutor.delete(getUrl(x, "/NotFound")));
+        });
+  }
+
+  private URL getUrl(InetSocketAddress socketAddress, String path) {
+    try {
+      return new URL("http://localhost:" + socketAddress.getPort() + path);
+    } catch (MalformedURLException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static class TestResponse {
     private String responseValue;
 
     public String responseValue() {
@@ -94,7 +138,7 @@ class HttpExecutorTest {
     }
   }
 
-  public class TestRequest {
+  public static class TestRequest {
     private String requestValue;
 
     public String requestValue() {
