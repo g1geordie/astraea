@@ -25,6 +25,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import org.astraea.common.Utils;
 import org.astraea.common.json.JsonConverter;
 
@@ -47,18 +48,17 @@ public class HttpExecutorBuilder {
 
     return new HttpExecutor() {
       @Override
-      public <T> HttpResponse<T> get(String url, Class<T> respCls) {
+      public <T> CompletableFuture<HttpResponse<T>> get(String url, Class<T> respCls) {
         return Utils.packException(
             () -> {
               HttpRequest request = HttpRequest.newBuilder().GET().uri(new URI(url)).build();
-
               return toGsonHttpResponse(
-                  client.send(request, HttpResponse.BodyHandlers.ofString()), respCls);
+                  client.sendAsync(request, HttpResponse.BodyHandlers.ofString()), respCls);
             });
       }
 
       @Override
-      public <T> HttpResponse<T> get(String url, Object param, Class<T> respCls) {
+      public <T> CompletableFuture<HttpResponse<T>> get(String url, Object param, Class<T> respCls) {
         return Utils.packException(
             () -> {
               HttpRequest request =
@@ -68,23 +68,23 @@ public class HttpExecutorBuilder {
                       .build();
 
               return toGsonHttpResponse(
-                  client.send(request, HttpResponse.BodyHandlers.ofString()), respCls);
+                  client.sendAsync(request, HttpResponse.BodyHandlers.ofString()), respCls);
             });
       }
 
       @Override
-      public <T> HttpResponse<T> get(String url, Type type) {
+      public <T> CompletableFuture<HttpResponse<T>> get(String url, Type type) {
         return Utils.packException(
             () -> {
               HttpRequest request = HttpRequest.newBuilder().GET().uri(new URI(url)).build();
 
               return toGsonHttpResponse(
-                  client.send(request, HttpResponse.BodyHandlers.ofString()), type);
+                  client.sendAsync(request, HttpResponse.BodyHandlers.ofString()), type);
             });
       }
 
       @Override
-      public <T> HttpResponse<T> post(String url, Object body, Class<T> respCls) {
+      public <T> CompletableFuture<HttpResponse<T>> post(String url, Object body, Class<T> respCls) {
         return Utils.packException(
             () -> {
               HttpRequest request =
@@ -95,12 +95,12 @@ public class HttpExecutorBuilder {
                       .build();
 
               return toGsonHttpResponse(
-                  client.send(request, HttpResponse.BodyHandlers.ofString()), respCls);
+                  client.sendAsync(request, HttpResponse.BodyHandlers.ofString()), respCls);
             });
       }
 
       @Override
-      public <T> HttpResponse<T> put(String url, Object body, Class<T> respCls) {
+      public <T> CompletableFuture<HttpResponse<T>> put(String url, Object body, Class<T> respCls) {
         return Utils.packException(
             () -> {
               HttpRequest request =
@@ -111,35 +111,61 @@ public class HttpExecutorBuilder {
                       .build();
 
               return toGsonHttpResponse(
-                  client.send(request, HttpResponse.BodyHandlers.ofString()), respCls);
+                  client.sendAsync(request, HttpResponse.BodyHandlers.ofString()), respCls);
             });
       }
 
       @Override
-      public HttpResponse<Void> delete(String url) {
+      public CompletableFuture<HttpResponse<Void>> delete(String url) {
         return Utils.packException(
             () -> {
               HttpRequest request = HttpRequest.newBuilder().DELETE().uri(new URI(url)).build();
-              return withException(client.send(request, HttpResponse.BodyHandlers.discarding()));
+              return withException(client.sendAsync(request, HttpResponse.BodyHandlers.discarding()));
             });
+      }
+
+      /**
+       *  if return value is Json , then we can convert it to Object.
+       *  Or we just simply handle exception by {@link #withException(CompletableFuture)}
+       */
+      private <T> CompletableFuture<HttpResponse<T>> toGsonHttpResponse(
+          CompletableFuture<HttpResponse<String>> asyncResponse, Type type)
+          throws StringResponseException {
+        return asyncResponse.thenApply(x->toGsonHttpResponse(x,type));
       }
 
       private <T> HttpResponse<T> toGsonHttpResponse(HttpResponse<String> response, Type type)
           throws StringResponseException {
-        var innerResponse = withException(response);
-        return new MappedHttpResponse<>(
-            response,
-            x -> {
-              if (Objects.requireNonNull(x).isBlank()) {
-                throw new StringResponseException(response, type);
-              }
+          var innerResponse=withException(response);
+          return new MappedHttpResponse<>(
+              innerResponse,
+              x -> {
+                if (Objects.requireNonNull(x).isBlank()) {
+                  throw new StringResponseException(innerResponse, type);
+                }
 
-              try {
-                return jsonConverter.fromJson(x, type);
-              } catch (JsonSyntaxException jsonSyntaxException) {
-                throw new StringResponseException(response, type);
-              }
-            });
+                try {
+                  return jsonConverter.fromJson(x, type);
+                } catch (JsonSyntaxException jsonSyntaxException) {
+                  throw new StringResponseException(innerResponse, type);
+                }
+              });
+        }
+
+      /**
+       *  Handle exception with non json type response .
+       *  If return value is json , we can use {@link #toGsonHttpResponse(CompletableFuture, Type)}
+       */
+      private <T> CompletableFuture<HttpResponse<T>> withException(CompletableFuture<HttpResponse<T>> response){
+        return response.thenApply(this::withException);
+      }
+
+      private <T> HttpResponse<T> withException(HttpResponse<T> response){
+        if (response.statusCode() >= 400) {
+          throw new StringResponseException(toStringResponse(response));
+        }else{
+          return response;
+        }
       }
 
       /**
@@ -147,10 +173,8 @@ public class HttpExecutorBuilder {
        * identify that error.
        */
       @SuppressWarnings("unchecked")
-      private <T> HttpResponse<T> withException(HttpResponse<T> httpResponse)
+      private <T> HttpResponse<String> toStringResponse(HttpResponse<T> httpResponse)
           throws StringResponseException {
-
-        if (httpResponse.statusCode() >= 400) {
           HttpResponse<String> stringHttpResponse;
           if (Objects.isNull(httpResponse.body())) {
             stringHttpResponse = new MappedHttpResponse<>(httpResponse, (x) -> null);
@@ -160,9 +184,6 @@ public class HttpExecutorBuilder {
             stringHttpResponse = new MappedHttpResponse<>(httpResponse, Object::toString);
           }
           throw new StringResponseException(stringHttpResponse);
-        } else {
-          return httpResponse;
-        }
       }
 
       private Map<String, String> object2Map(Object obj) {

@@ -18,6 +18,7 @@ package org.astraea.common.connector;
 
 import java.lang.reflect.Type;
 import java.net.http.HttpResponse;
+import java.util.concurrent.CompletableFuture;
 
 /** Send json http request. */
 public interface HttpExecutor {
@@ -25,16 +26,16 @@ public interface HttpExecutor {
   static HttpExecutorBuilder builder() {
     return new HttpExecutorBuilder();
   }
+  
+  <T> CompletableFuture<HttpResponse<T>> get(String url, Class<T> respCls);
 
-  <T> HttpResponse<T> get(String url, Class<T> respCls);
+  <T> CompletableFuture<HttpResponse<T>> get(String url, Object param, Class<T> respCls);
 
-  <T> HttpResponse<T> get(String url, Object param, Class<T> respCls);
+  <T> CompletableFuture<HttpResponse<T>> get(String url, Type type);
 
-  <T> HttpResponse<T> get(String url, Type type);
+  <T> CompletableFuture<HttpResponse<T>> post(String url, Object body, Class<T> respCls);
 
-  <T> HttpResponse<T> post(String url, Object body, Class<T> respCls);
+  <T> CompletableFuture<HttpResponse<T>> put(String url, Object body, Class<T> respCls);
 
-  <T> HttpResponse<T> put(String url, Object body, Class<T> respCls);
-
-  HttpResponse<Void> delete(String url);
+  CompletableFuture<HttpResponse<Void>> delete(String url);
 }
