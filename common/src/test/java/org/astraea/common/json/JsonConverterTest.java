@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.gson.reflect.TypeToken;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -67,10 +66,61 @@ class JsonConverterTest {
   }
 
   @Test
-  void testObject() {
-    var json = jsonConverter.toJson(new TestClass("testString",
-        var jsonConverter = JsonConverter.gson();45678,Optional.of("test")));
+  void testPrimitive() {
+    var jsonConverter = JsonConverter.gson();
+    var testFieldClass=new TestPrimitiveClass();
+    testFieldClass.doublueValue=456d;
+    testFieldClass.intValue=12;
+    testFieldClass.stringValue="hello";
+
+    var json=jsonConverter.toJson(testFieldClass);
+    assertEquals("{\"doublueValue\":456.0,\"intValue\":12,\"stringValue\":\"hello\"}",json);
+
+    var convertedTestFieldClass=jsonConverter.fromJson("{\"doublueValue\":456.0,\"intValue\":12,\"stringValue\":\"hello\"}",
+        TestPrimitiveClass.class);
+    assertEquals(456d,convertedTestFieldClass.doublueValue);
+    assertEquals(12,convertedTestFieldClass.intValue);
+    assertEquals("hello",convertedTestFieldClass.stringValue);
+
     System.out.println(json);
+  }
+
+  @Test
+  void testOptional() {
+    var jsonConverter = JsonConverter.gson();
+//    var testFieldClass=new TestOptionalClass();
+//    testFieldClass.optValue=Optional.ofNullable("hello");
+//    testFieldClass.nestedOpt=Optional.ofNullable(List.of("hello"));
+//
+//    var json=jsonConverter.toJson(testFieldClass);
+//    assertEquals("{\"nestedOpt\":[\"hello\"],\"optValue\":\"hello\"}",json);
+//
+//    testFieldClass.optValue=Optional.empty();
+//    testFieldClass.nestedOpt=Optional.empty();
+//    json=jsonConverter.toJson(testFieldClass);
+//    assertEquals("{}",json);
+
+//    var convertedTestFieldClass=jsonConverter.fromJson("{\"nestedOpt\":[\"hello\"],\"optValue\":\"hello\"}",
+//        TestOptionalClass.class);
+//    assertEquals("hello",convertedTestFieldClass.optValue.get());
+//    assertEquals(List.of("hello"),convertedTestFieldClass.nestedOpt.get());
+
+    var convertedTestFieldClass=jsonConverter.fromJson("{}",
+        TestOptionalClass.class);
+    assertTrue(convertedTestFieldClass.optValue.isEmpty());
+    assertTrue(convertedTestFieldClass.nestedOpt.isEmpty());
+  }
+
+  @Test
+  void testNestedObject() {
+
+  }
+
+  @Test
+  void testObject() {
+    var jsonConverter = JsonConverter.gson();
+//    var json = jsonConverter.toJson(new TestClass("testString", 45678,Optional.of("test")));
+//    System.out.println(json);
 //    assertEquals("{\"stringValue\":\"testString\",\"intValue\":45678}", json);
 
 //    var testObject =
@@ -85,52 +135,68 @@ class JsonConverterTest {
 //    assertEquals(new TestClass("testString", 45678), testObject);
   }
 
-  private static class TestClass {
+  @Test
+  void testToObjectIgnoreOrder() {
+
+  }
+
+  @Test
+  void testTrim(){
+    var jsonConverter = JsonConverter.gson();
+    var testFieldNameClass=new TestFieldNameClass();
+    testFieldNameClass.beta=List.of("notMatter");
+    testFieldNameClass.banana="notMatter";
+    testFieldNameClass.apple="notMatter";
+    testFieldNameClass.actor=123;
+    testFieldNameClass.dog=new TestPrimitiveClass();
+    var json=jsonConverter.toJson(testFieldNameClass);
+    assertEquals(json,json.trim());
+  }
+
+  @Test
+  void testFieldNameOrder(){
+    var jsonConverter = JsonConverter.gson();
+    var testFieldNameClass=new TestFieldNameClass();
+    testFieldNameClass.beta=List.of("notMatter");
+    testFieldNameClass.banana="notMatter";
+    testFieldNameClass.apple="notMatter";
+    testFieldNameClass.actor=123;
+    testFieldNameClass.dog=new TestPrimitiveClass();
+
+    var json=jsonConverter.toJson(testFieldNameClass);
+    assertEquals("{\"actor\":123,"
+            + "\"apple\":\"notMatter\","
+            + "\"banana\":\"notMatter\","
+            + "\"beta\":[\"notMatter\"],"
+            + "\"dog\":{\"intValue\":0}"
+            + "}",json);
+  }
+
+  /**
+   * order should be actor, apple, banana, beta, dog
+   */
+  private static class TestFieldNameClass {
+    private List<String> beta;
+    private String banana;
+    private String apple;
+    private int actor;
+    private TestPrimitiveClass dog;
+  }
+
+  private static class TestOptionalClass {
+    private Optional<String> optValue;
+    private Optional<List<String>> nestedOpt;
+  }
+
+  private static class TestNestedObjectClass {
+    private List<Map<String,String>> nestedList;
+    private Map<String,List<String>> nestedMap;
+    private TestPrimitiveClass nestedObject;
+  }
+
+  private static class TestPrimitiveClass {
     private String stringValue;
     private int intValue;
-
-    private Optional<String> optValue;
-
-    public TestClass(String stringValue, int intValue , Optional<String> optValue) {
-      this.stringValue = stringValue;
-      this.intValue = intValue;
-      this.optValue=optValue;
-    }
-
-    public Optional<String> optValue() {
-      return optValue;
-    }
-
-    public void setOptValue(Optional<String> optValue) {
-      this.optValue = optValue;
-    }
-
-    public String stringValue() {
-      return stringValue;
-    }
-
-    public void setStringValue(String stringValue) {
-      this.stringValue = stringValue;
-    }
-
-    public int intValue() {
-      return intValue;
-    }
-
-    public void setIntValue(int intValue) {
-      this.intValue = intValue;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      TestClass testClass = (TestClass) o;
-      return intValue == testClass.intValue && Objects.equals(stringValue, testClass.stringValue);
-    }
+    private Double doublueValue;
   }
 }

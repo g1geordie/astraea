@@ -53,17 +53,22 @@ public interface JsonConverter {
       @Override
       public String toJson(Object src) {
         var jsonElement=gson.toJsonTree(src);
+        return gson.toJson(getOrderedObject(jsonElement));
+      }
 
+      private JsonElement getOrderedObject(JsonElement jsonElement){
         if(jsonElement.isJsonObject()){
-          var object=jsonElement.getAsJsonObject();
-          object.entrySet().stream().sorted(Entry.comparingByKey()).map(x->x.g).collect(Collectors.toList());
+          return getOrderedObject(jsonElement.getAsJsonObject());
+        }else{
+          return jsonElement;
         }
-        return gson.toJson(src);
       }
 
       private JsonObject getOrderedObject(JsonObject jsonObject){
         var newJsonObject=new JsonObject();
-        return jsonObject.entrySet().stream().sorted(Entry.comparingByKey()).map(Entry::getValue).collect(Collectors.toList());
+        jsonObject.entrySet().stream().sorted(Entry.comparingByKey())
+            .forEach(x->newJsonObject.add(x.getKey(),getOrderedObject(x.getValue())));
+        return newJsonObject;
       }
 
       @Override
