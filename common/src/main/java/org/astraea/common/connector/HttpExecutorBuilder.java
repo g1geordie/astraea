@@ -16,8 +16,8 @@
  */
 package org.astraea.common.connector;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -145,7 +145,7 @@ public class HttpExecutorBuilder {
                 }
 
                 try {
-                  return jsonConverter.fromJson(x, type);
+                  return jsonConverter.fromJson(x, new TypeReference<>() {});
                 } catch (JsonSyntaxException jsonSyntaxException) {
                   throw new StringResponseException(innerResponse, type);
                 }
@@ -188,7 +188,7 @@ public class HttpExecutorBuilder {
 
       private Map<String, String> object2Map(Object obj) {
         return jsonConverter.fromJson(
-            jsonConverter.toJson(obj), new TypeToken<Map<String, String>>() {}.getType());
+            jsonConverter.toJson(obj), new TypeReference<>() {});
       }
 
       private <T> HttpRequest.BodyPublisher gsonRequestHandler(Object t) {

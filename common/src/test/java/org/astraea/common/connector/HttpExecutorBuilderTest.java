@@ -18,7 +18,7 @@ package org.astraea.common.connector;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.lang.reflect.Type;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.astraea.common.json.JsonConverter;
 import org.junit.jupiter.api.Test;
 
@@ -46,7 +46,7 @@ class HttpExecutorBuilderTest {
     }
 
     @Override
-    public <T> T fromJson(String json, Type type) {
+    public <T> T fromJson(String json, TypeReference<T> typeRef) {
       return null;
     }
   }

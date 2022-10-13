@@ -19,7 +19,13 @@ package org.astraea.common.json;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.google.gson.reflect.TypeToken;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,38 +34,42 @@ import org.junit.jupiter.api.Test;
 
 class JsonConverterTest {
 
+  private JsonConverter getConverter(){
+    return JsonConverter.jackson();
+  }
+
   @Test
   void testMap() {
-    var jsonConverter = JsonConverter.gson();
+    var jsonConverter = getConverter();
     var json = jsonConverter.toJson(Map.of("testKey", "testValue"));
     assertEquals("{\"testKey\":\"testValue\"}", json);
 
     Map<String, String> list =
         jsonConverter.fromJson(
-            "{\"testKey\":\"testValue\"}", new TypeToken<Map<String, String>>() {}.getType());
+            "{\"testKey\":\"testValue\"}", new TypeReference<>() {});
     assertEquals(Map.of("testKey", "testValue"), list);
   }
 
   @Test
   void testList() {
-    var jsonConverter = JsonConverter.gson();
+    var jsonConverter = getConverter();
     var json = jsonConverter.toJson(List.of("v1", "v2"));
     assertEquals("[\"v1\",\"v2\"]", json);
 
     List<String> list =
-        jsonConverter.fromJson("[\"v1\",\"v2\"]", new TypeToken<List<String>>() {}.getType());
+        jsonConverter.fromJson("[\"v1\",\"v2\"]", new TypeReference<>() {});
     assertEquals(List.of("v1", "v2"), list);
   }
 
   @Test
   void testSet() {
-    var jsonConverter = JsonConverter.gson();
+    var jsonConverter = getConverter();
     var json = jsonConverter.toJson(Set.of("v1", "v2"));
     //    equals ignore order
     assertTrue("[\"v1\",\"v2\"]".equals(json) || "[\"v2\",\"v1\"]".equals(json));
 
     Set<String> set =
-        jsonConverter.fromJson("[\"v1\",\"v2\"]", new TypeToken<Set<String>>() {}.getType());
+        jsonConverter.fromJson("[\"v1\",\"v2\"]",new TypeReference<>() {});
     var expectedSet = Set.of("v1", "v2");
     //    equals ignore order
     assertTrue(expectedSet.containsAll(set) && set.containsAll(expectedSet));
@@ -67,7 +77,7 @@ class JsonConverterTest {
 
   @Test
   void testPrimitive() {
-    var jsonConverter = JsonConverter.gson();
+    var jsonConverter = getConverter();
     var testFieldClass=new TestPrimitiveClass();
     testFieldClass.doublueValue=456d;
     testFieldClass.intValue=12;
@@ -86,11 +96,15 @@ class JsonConverterTest {
   }
 
   @Test
-  void testOptional() {
-    var jsonConverter = JsonConverter.gson();
-//    var testFieldClass=new TestOptionalClass();
-//    testFieldClass.optValue=Optional.ofNullable("hello");
-//    testFieldClass.nestedOpt=Optional.ofNullable(List.of("hello"));
+  void testOptional() throws JsonProcessingException {
+    var jsonConverter = getConverter();
+    var testFieldClass=new TestOptionalClass();
+    testFieldClass.optValue=Optional.ofNullable("hello");
+    testFieldClass.nestedOpt=Optional.ofNullable(List.of("hello"));
+
+    var objectMapper =new ObjectMapper().registerModule(new Jdk8Module());
+    objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+    System.out.println(objectMapper.writeValueAsString(testFieldClass));
 //
 //    var json=jsonConverter.toJson(testFieldClass);
 //    assertEquals("{\"nestedOpt\":[\"hello\"],\"optValue\":\"hello\"}",json);
@@ -100,15 +114,38 @@ class JsonConverterTest {
 //    json=jsonConverter.toJson(testFieldClass);
 //    assertEquals("{}",json);
 
-//    var convertedTestFieldClass=jsonConverter.fromJson("{\"nestedOpt\":[\"hello\"],\"optValue\":\"hello\"}",
-//        TestOptionalClass.class);
-//    assertEquals("hello",convertedTestFieldClass.optValue.get());
-//    assertEquals(List.of("hello"),convertedTestFieldClass.nestedOpt.get());
-
-    var convertedTestFieldClass=jsonConverter.fromJson("{}",
+    var convertedTestFieldClass=jsonConverter.fromJson("{\"nestedOpt\":[\"hello\"],\"optValue\":\"hello\"}",
         TestOptionalClass.class);
-    assertTrue(convertedTestFieldClass.optValue.isEmpty());
+    assertEquals("hello",convertedTestFieldClass.optValue.get());
+    assertEquals(List.of("hello"),convertedTestFieldClass.nestedOpt.get());
+
+     convertedTestFieldClass=jsonConverter.fromJson("{\"optValue\":null}",
+        TestOptionalClass.class);
+     assertTrue(convertedTestFieldClass.optValue.isEmpty());
     assertTrue(convertedTestFieldClass.nestedOpt.isEmpty());
+  }
+
+  @Test
+  void testOptional2() throws JsonProcessingException {
+    var objectMapper =new ObjectMapper();
+    objectMapper.registerModule(new Jdk8Module());
+    objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+    objectMapper.setVisibility(objectMapper.getSerializationConfig().getDefaultVisibilityChecker()
+        .withFieldVisibility(JsonAutoDetect.Visibility.ANY)
+        .withGetterVisibility(JsonAutoDetect.Visibility.NONE)
+        .withSetterVisibility(JsonAutoDetect.Visibility.NONE)
+        .withCreatorVisibility(JsonAutoDetect.Visibility.NONE));
+
+    objectMapper.setSerializationInclusion(Include.NON_ABSENT);
+    var testFieldClass=new TestOptionalClass();
+    testFieldClass.optValue=Optional.ofNullable("hello");
+    testFieldClass.nestedOpt=Optional.ofNullable(List.of("hello"));
+
+    System.out.println(objectMapper.writeValueAsString(testFieldClass));
+
+    var convertedTestFieldClass=objectMapper.readValue("{}",
+        TestOptionalClass.class);
+    System.out.println(convertedTestFieldClass.nestedOpt.isEmpty());
   }
 
   @Test
@@ -118,7 +155,7 @@ class JsonConverterTest {
 
   @Test
   void testObject() {
-    var jsonConverter = JsonConverter.gson();
+    var jsonConverter = getConverter();
 //    var json = jsonConverter.toJson(new TestClass("testString", 45678,Optional.of("test")));
 //    System.out.println(json);
 //    assertEquals("{\"stringValue\":\"testString\",\"intValue\":45678}", json);
@@ -142,7 +179,7 @@ class JsonConverterTest {
 
   @Test
   void testTrim(){
-    var jsonConverter = JsonConverter.gson();
+    var jsonConverter = getConverter();
     var testFieldNameClass=new TestFieldNameClass();
     testFieldNameClass.beta=List.of("notMatter");
     testFieldNameClass.banana="notMatter";
@@ -155,7 +192,7 @@ class JsonConverterTest {
 
   @Test
   void testFieldNameOrder(){
-    var jsonConverter = JsonConverter.gson();
+    var jsonConverter = getConverter();
     var testFieldNameClass=new TestFieldNameClass();
     testFieldNameClass.beta=List.of("notMatter");
     testFieldNameClass.banana="notMatter";
@@ -186,6 +223,7 @@ class JsonConverterTest {
   private static class TestOptionalClass {
     private Optional<String> optValue;
     private Optional<List<String>> nestedOpt;
+
   }
 
   private static class TestNestedObjectClass {

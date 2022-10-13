@@ -16,9 +16,14 @@
  */
 package org.astraea.common.json;
 
-import com.google.gson.Gson;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
@@ -29,10 +34,9 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.Comparator;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import org.astraea.common.Utils;
 
 public interface JsonConverter {
 
@@ -41,11 +45,41 @@ public interface JsonConverter {
   <T> T fromJson(String json, Class<T> tClass);
 
   /**
-   * for nested generic object ,the return value should specify type , Example: List<String>
+   * for nested generic object ,the return value should specify typeRef , Example: List<String>
    */
-  <T> T fromJson(String json, Type type);
+  <T> T fromJson(String json, TypeReference<T> typeRef);
 
-  static JsonConverter gson() {
+  static JsonConverter jackson() {
+    var objectMapper =new ObjectMapper();
+    objectMapper.registerModule(new Jdk8Module());
+    objectMapper.setVisibility(objectMapper.getSerializationConfig().getDefaultVisibilityChecker()
+        .withFieldVisibility(JsonAutoDetect.Visibility.ANY)
+        .withGetterVisibility(JsonAutoDetect.Visibility.NONE)
+        .withSetterVisibility(JsonAutoDetect.Visibility.NONE)
+        .withCreatorVisibility(JsonAutoDetect.Visibility.NONE));
+
+    objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+    objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY,true);
+//    objectMapper.setSerializationInclusion(Include.NON_NULL);
+//    objectMapper.setSerializationInclusion(Include.NON_EMPTY);
+    return new JsonConverter() {
+      @Override
+      public String toJson(Object src) {
+        return Utils.packException(()-> objectMapper.writeValueAsString(src));
+      }
+
+      @Override
+      public <T> T fromJson(String json, Class<T> tClass) {
+        return Utils.packException(()-> objectMapper.readValue(json,tClass));
+      }
+
+      @Override
+      public <T> T fromJson(String json,  TypeReference<T> typeRef) {
+        return Utils.packException(()-> objectMapper.readValue(json, typeRef));
+      }
+    };
+  }
+    static JsonConverter gson() {
     var gson = new GsonBuilder()
         .registerTypeAdapter(Optional.class,new GsonOptionalDeserializer<>())
         .create();
@@ -77,8 +111,8 @@ public interface JsonConverter {
       }
 
       @Override
-      public <T> T fromJson(String json, Type type) {
-        return gson.fromJson(json, type);
+      public <T> T fromJson(String json, TypeReference<T> typeRef) {
+        return gson.fromJson(json, typeRef.getType());
       }
     };
   }
