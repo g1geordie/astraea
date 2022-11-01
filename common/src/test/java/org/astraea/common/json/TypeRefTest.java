@@ -30,6 +30,7 @@ class TypeRefTest {
     var listType = new TypeRef<List<String>>() {};
     var mapType = new TypeRef<Map<String, Integer>>() {};
 
+    System.out.println(listType.getType().getClass());
     assertEquals("class java.lang.String", stringType.getType().toString());
     assertEquals("java.util.List<java.lang.String>", listType.getType().toString());
     assertEquals(

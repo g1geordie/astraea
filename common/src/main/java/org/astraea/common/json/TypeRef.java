@@ -16,11 +16,13 @@
  */
 package org.astraea.common.json;
 
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
 /** ParentType didn't erase , use reflection to get that type */
 public abstract class TypeRef<T> {
@@ -39,11 +41,20 @@ public abstract class TypeRef<T> {
   }
 
   public static <T> TypeRef<List<T>> array(Class<T> clz) {
-    return of(TypeToken.getParameterized(List.class, clz).getType());
+//    TypeFactory.defaultInstance().constructRawCollectionLikeType()
+
+//    ParameterizedTypeImpl.
+
+    ParameterizedTypeImpl
+
+        TypeUtils
+
+    return of(TypeFactory.defaultInstance().constructParametricType(List.class,clz).getContentType());
   }
 
   public static <T> TypeRef<Map<String, T>> map(Class<T> clz) {
-    return of(TypeToken.getParameterized(Map.class, String.class, clz).getType());
+//    return of(TypeToken.getParameterized(Map.class, String.class, clz).getType())
+    return of(TypeFactory.defaultInstance().constructParametricType(Map.class, String.class,clz));
   }
 
   protected final Type type;
